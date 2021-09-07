@@ -815,7 +815,11 @@ async def test_queries_with_expose_backend_connection(database_url):
                 raw_connection = connection.raw_connection
 
                 # Insert query
-                if database.url.scheme in ["mysql", "postgresql+aiopg"]:
+                if database.url.scheme in [
+                    "mysql",
+                    "mysql+asyncmy",
+                    "postgresql+aiopg",
+                ]:
                     insert_query = "INSERT INTO notes (text, completed) VALUES (%s, %s)"
                 else:
                     insert_query = "INSERT INTO notes (text, completed) VALUES ($1, $2)"
@@ -859,6 +863,10 @@ async def test_queries_with_expose_backend_connection(database_url):
                     cursor = await raw_connection.cursor()
                     await cursor.execute(select_query)
                     results = await cursor.fetchall()
+                elif database.url.scheme == "mysql+asyncmy":
+                    async with raw_connection.cursor() as cursor:
+                        await cursor.execute(select_query)
+                        results = await cursor.fetchall()
                 elif database.url.scheme == "postgresql":
                     results = await raw_connection.fetch(select_query)
                 elif database.url.scheme == "sqlite":
@@ -876,6 +884,10 @@ async def test_queries_with_expose_backend_connection(database_url):
                 # fetch_one()
                 if database.url.scheme == "postgresql":
                     result = await raw_connection.fetchrow(select_query)
+                elif database.url.scheme == "mysql+asyncmy":
+                    async with raw_connection.cursor() as cursor:
+                        await cursor.execute(select_query)
+                        result = await cursor.fetchone()
                 else:
                     cursor = await raw_connection.cursor()
                     await cursor.execute(select_query)
