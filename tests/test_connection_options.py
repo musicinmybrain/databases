@@ -7,7 +7,7 @@ from databases.backends.asyncmy import AsyncMyBackend
 from databases.backends.mysql import MySQLBackend
 from databases.backends.postgres import PostgresBackend
 from databases.core import DatabaseURL
-from tests.test_databases import DATABASE_URLS, async_adapter
+from tests.test_databases import DATABASE_URL, async_adapter
 
 
 def test_postgres_pool_size():
@@ -18,10 +18,8 @@ def test_postgres_pool_size():
 
 @async_adapter
 async def test_postgres_pool_size_connect():
-    for url in DATABASE_URLS:
-        if DatabaseURL(url).dialect != "postgresql":
-            continue
-        backend = PostgresBackend(url + "?min_size=1&max_size=20")
+    if DatabaseURL(DATABASE_URL).dialect == "postgresql":
+        backend = PostgresBackend(DATABASE_URL + "?min_size=1&max_size=20")
         await backend.connect()
         await backend.disconnect()
 

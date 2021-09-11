@@ -4,8 +4,8 @@
 -e .
 
 # Async database drivers
+asyncmy;python_version>"3.6"
 aiomysql
-asyncmy
 aiopg
 aiosqlite
 asyncpg

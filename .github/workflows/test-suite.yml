@@ -14,7 +14,14 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9"]
+        python-version: ["3.6", "3.7", "3.8", "3.9"]
+        database-url: [
+          "sqlite:///testsuite",
+          "mysql://username:password@localhost:3306/testsuite",
+          "mysql+asyncmy://username:password@localhost:3306/testsuite",
+          "postgresql://username:password@localhost:5432/testsuite",
+          "postgresql+aiopg://username:password@127.0.0.1:5432/testsuite",
+        ]
 
     services:
       mysql:
@@ -40,17 +47,41 @@ jobs:
 
     steps:
       - uses: "actions/checkout@v2"
+      - uses: actions/cache@v2
+        with:
+          path: .
+          key: ${{ runner.os }}-python${{ matrix.python-version }}
       - uses: "actions/setup-python@v1"
         with:
           python-version: "${{ matrix.python-version }}"
+          database-url: "${{ matrix.database-url }}"
       - name: "Install dependencies"
         run: "scripts/install"
+      - name: "Run linting checks"
+        run: "scripts/check"
+      - name: "Build package & docs"
+        run: "scripts/build"
       - name: "Run tests"
-        env:
-          TEST_DATABASE_URLS: >-
-            sqlite:///testsuite,
-            mysql://username:password@localhost:3306/testsuite,
-            mysql+asyncmy://username:password@localhost:3306/testsuite,
-            postgresql://username:password@localhost:5432/testsuite,
-            postgresql+aiopg://username:password@127.0.0.1:5432/testsuite
+        env: 
+          TEST_DATABASE_URL: "${{ matrix.database-url }}"
+        if: ${{ matrix.python-version != '3.6' && matrix.database-url != 'mysql+asyncmy://username:password@localhost:3306/testsuite' }}
         run: "scripts/test"
+  
+  coverage:
+    name: "Python ${{ matrix.python-version }}"
+    needs: tests
+    runs-on: "ubuntu-latest"
+
+    strategy:
+      matrix:
+        python-version: ["3.6", "3.7", "3.8", "3.9"]
+
+    steps:
+      - uses: actions/cache@v2
+        with:
+          path: .
+          key: ${{ runner.os }}-python${{ matrix.python-version }}
+      - name: test
+        run: "ls"
+      - name: "Enforce coverage"
+        run: "./home/runner/work/databases/databases/scripts/coverage"

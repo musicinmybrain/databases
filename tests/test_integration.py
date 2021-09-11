@@ -8,9 +8,9 @@ from starlette.testclient import TestClient
 
 from databases import Database, DatabaseURL
 
-assert "TEST_DATABASE_URLS" in os.environ, "TEST_DATABASE_URLS is not set."
+assert "TEST_DATABASE_URL" in os.environ, "TEST_DATABASE_URL is not set."
 
-DATABASE_URLS = [url.strip() for url in os.environ["TEST_DATABASE_URLS"].split(",")]
+DATABASE_URL = os.environ["TEST_DATABASE_URL"]
 
 metadata = sqlalchemy.MetaData()
 
@@ -25,28 +25,30 @@ notes = sqlalchemy.Table(
 
 @pytest.fixture(autouse=True, scope="module")
 def create_test_database():
-    # Create test databases
-    for url in DATABASE_URLS:
-        database_url = DatabaseURL(url)
-        if database_url.scheme in ["mysql", "mysql+asyncmy"]:
-            url = str(database_url.replace(driver="pymysql"))
-        elif database_url.scheme == "postgresql+aiopg":
-            url = str(database_url.replace(driver=None))
-        engine = sqlalchemy.create_engine(url)
-        metadata.create_all(engine)
+    # Create test database
+    database_url = DatabaseURL(DATABASE_URL)
+    if database_url.scheme in ["mysql", "mysql+asyncmy"]:
+        url = str(database_url.replace(driver="pymysql"))
+    elif database_url.scheme == "postgresql+aiopg":
+        url = str(database_url.replace(driver=None))
+    else:
+        url = str(database_url)
+    engine = sqlalchemy.create_engine(url)
+    metadata.create_all(engine)
 
     # Run the test suite
     yield
 
-    # Drop test databases
-    for url in DATABASE_URLS:
-        database_url = DatabaseURL(url)
-        if database_url.scheme in ["mysql", "mysql+asyncmy"]:
-            url = str(database_url.replace(driver="pymysql"))
-        elif database_url.scheme == "postgresql+aiopg":
-            url = str(database_url.replace(driver=None))
-        engine = sqlalchemy.create_engine(url)
-        metadata.drop_all(engine)
+    # Drop test database
+    database_url = DatabaseURL(DATABASE_URL)
+    if database_url.scheme in ["mysql", "mysql+asyncmy"]:
+        url = str(database_url.replace(driver="pymysql"))
+    elif database_url.scheme == "postgresql+aiopg":
+        url = str(database_url.replace(driver=None))
+    else:
+        url = str(database_url)
+    engine = sqlalchemy.create_engine(url)
+    metadata.drop_all(engine)
 
 
 def get_app(database_url):
@@ -81,9 +83,8 @@ def get_app(database_url):
     return app
 
 
-@pytest.mark.parametrize("database_url", DATABASE_URLS)
-def test_integration(database_url):
-    app = get_app(database_url)
+def test_integration():
+    app = get_app(DATABASE_URL)
 
     with TestClient(app) as client:
         response = client.post("/notes", json={"text": "example", "completed": True})
