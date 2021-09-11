@@ -21,6 +21,11 @@ class AsyncMock(MagicMock):
         return super(AsyncMock, self).__call__(*args, **kwargs)
 
 
+class AsyncMock(MagicMock):
+    async def __call__(self, *args, **kwargs):
+        return super(AsyncMock, self).__call__(*args, **kwargs)
+
+
 class MyEpochType(sqlalchemy.types.TypeDecorator):
     impl = sqlalchemy.Integer
 
@@ -302,6 +307,7 @@ async def test_results_support_mapping_interface():
     Casting results to a dict should work, since the interface defines them
     as supporting the mapping interface.
     """
+
     async with Database(DATABASE_URL) as database:
         async with database.transaction(force_rollback=True):
             # execute()
