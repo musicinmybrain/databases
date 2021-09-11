@@ -21,11 +21,6 @@ class AsyncMock(MagicMock):
         return super(AsyncMock, self).__call__(*args, **kwargs)
 
 
-class AsyncMock(MagicMock):
-    async def __call__(self, *args, **kwargs):
-        return super(AsyncMock, self).__call__(*args, **kwargs)
-
-
 class MyEpochType(sqlalchemy.types.TypeDecorator):
     impl = sqlalchemy.Integer
 

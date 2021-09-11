@@ -47,14 +47,9 @@ jobs:
 
     steps:
       - uses: "actions/checkout@v2"
-      - uses: actions/cache@v2
-        with:
-          path: .
-          key: ${{ runner.os }}-python${{ matrix.python-version }}
       - uses: "actions/setup-python@v1"
         with:
           python-version: "${{ matrix.python-version }}"
-          database-url: "${{ matrix.database-url }}"
       - name: "Install dependencies"
         run: "scripts/install"
       - name: "Run linting checks"
@@ -62,10 +57,15 @@ jobs:
       - name: "Build package & docs"
         run: "scripts/build"
       - name: "Run tests"
-        env: 
+        if: ${{ matrix.python-version != '3.6' || matrix.database-url != 'mysql+asyncmy://username:password@localhost:3306/testsuite' }}
+        env:
           TEST_DATABASE_URL: "${{ matrix.database-url }}"
-        if: ${{ matrix.python-version != '3.6' && matrix.database-url != 'mysql+asyncmy://username:password@localhost:3306/testsuite' }}
         run: "scripts/test"
+      - name: Upload code coverage results
+        uses: actions/upload-artifact@v2
+        with:
+          name: code-coverage-results
+          path: .coverage.*
   
   coverage:
     name: "Python ${{ matrix.python-version }}"
@@ -77,11 +77,12 @@ jobs:
         python-version: ["3.6", "3.7", "3.8", "3.9"]
 
     steps:
-      - uses: actions/cache@v2
+      - uses: "actions/checkout@v2"
+      - name: Download code coverage results
+        uses: actions/download-artifact@v2
         with:
-          path: .
-          key: ${{ runner.os }}-python${{ matrix.python-version }}
-      - name: test
-        run: "ls"
+          name: code-coverage-results
+      - name: "Install coverage.py"
+        run: "pip install coverage"
       - name: "Enforce coverage"
-        run: "./home/runner/work/databases/databases/scripts/coverage"
+        run: "./scripts/coverage"
