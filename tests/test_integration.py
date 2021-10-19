@@ -27,7 +27,7 @@ notes = sqlalchemy.Table(
 def create_test_database():
     # Create test database
     database_url = DatabaseURL(DATABASE_URL)
-    if database_url.scheme in ["mysql", "mysql+asyncmy"]:
+    if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
         url = str(database_url.replace(driver="pymysql"))
     elif database_url.scheme in [
         "postgresql+aiopg",
@@ -44,7 +44,7 @@ def create_test_database():
     yield
 
     database_url = DatabaseURL(DATABASE_URL)
-    if database_url.scheme in ["mysql", "mysql+asyncmy"]:
+    if database_url.scheme in ["mysql", "mysql+aiomysql", "mysql+asyncmy"]:
         url = str(database_url.replace(driver="pymysql"))
     elif database_url.scheme in [
         "postgresql+aiopg",
