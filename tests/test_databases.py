@@ -78,13 +78,17 @@ prices = sqlalchemy.Table(
 )
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True, scope="function")
 def create_test_database():
     # Create test database with tables creation
     database_url = DatabaseURL(DATABASE_URL)
     if database_url.scheme in ["mysql", "mysql+asyncmy"]:
         url = str(database_url.replace(driver="pymysql"))
-    elif database_url.scheme == "postgresql+aiopg":
+    elif database_url.scheme in [
+            "postgresql+aiopg",
+            "sqlite+aiosqlite",
+            "postgresql+asyncpg",
+        ]:
         url = str(database_url.replace(driver=None))
     else:
         url = str(database_url)
@@ -98,7 +102,11 @@ def create_test_database():
     database_url = DatabaseURL(database_url)
     if database_url.scheme in ["mysql", "mysql+asyncmy"]:
         url = str(database_url.replace(driver="pymysql"))
-    elif database_url.scheme == "postgresql+aiopg":
+    elif database_url.scheme in [
+            "postgresql+aiopg",
+            "sqlite+aiosqlite",
+            "postgresql+asyncpg",
+        ]:
         url = str(database_url.replace(driver=None))
     else:
         url = str(database_url)
@@ -469,8 +477,11 @@ async def test_transaction_commit_serializable():
 
     database_url = DatabaseURL(DATABASE_URL)
 
-    if database_url.scheme != "postgresql":
+    if database_url.scheme not in ["postgresql", "postgresql+asyncpg"]:
         pytest.skip("Test (currently) only supports asyncpg")
+
+    if database_url.scheme == "postgresql+asyncpg":
+        database_url = database_url.replace(driver=None)
 
     def insert_independently():
         engine = sqlalchemy.create_engine(str(database_url))
@@ -824,6 +835,7 @@ async def test_queries_with_expose_backend_connection():
                 if database.url.scheme in [
                     "mysql",
                     "mysql+asyncmy",
+                    "mysql+aiomysql",
                     "postgresql+aiopg",
                 ]:
                     insert_query = "INSERT INTO notes (text, completed) VALUES (%s, %s)"
@@ -833,21 +845,25 @@ async def test_queries_with_expose_backend_connection():
                 # execute()
                 values = ("example1", True)
 
-                if database.url.scheme in ["mysql", "postgresql+aiopg"]:
+                if database.url.scheme in [
+                    "mysql",
+                    "mysql+aiomysql",
+                    "postgresql+aiopg",
+                ]:
                     cursor = await raw_connection.cursor()
                     await cursor.execute(insert_query, values)
                 elif database.url.scheme == "mysql+asyncmy":
                     async with raw_connection.cursor() as cursor:
                         await cursor.execute(insert_query, values)
-                elif database.url.scheme == "postgresql":
+                elif database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
                     await raw_connection.execute(insert_query, *values)
-                elif database.url.scheme == "sqlite":
+                elif database.url.scheme in ["sqlite", "sqlite+aiosqlite"]:
                     await raw_connection.execute(insert_query, values)
 
                 # execute_many()
                 values = [("example2", False), ("example3", True)]
 
-                if database.url.scheme == "mysql":
+                if database.url.scheme in ["mysql", "mysql+aiomysql"]:
                     cursor = await raw_connection.cursor()
                     await cursor.executemany(insert_query, values)
                 elif database.url.scheme == "mysql+asyncmy":
@@ -865,7 +881,11 @@ async def test_queries_with_expose_backend_connection():
                 select_query = "SELECT notes.id, notes.text, notes.completed FROM notes"
 
                 # fetch_all()
-                if database.url.scheme in ["mysql", "postgresql+aiopg"]:
+                if database.url.scheme in [
+                    "mysql",
+                    "mysql+aiomysql",
+                    "postgresql+aiopg",
+                ]:
                     cursor = await raw_connection.cursor()
                     await cursor.execute(select_query)
                     results = await cursor.fetchall()
@@ -873,9 +893,9 @@ async def test_queries_with_expose_backend_connection():
                     async with raw_connection.cursor() as cursor:
                         await cursor.execute(select_query)
                         results = await cursor.fetchall()
-                elif database.url.scheme == "postgresql":
+                elif database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
                     results = await raw_connection.fetch(select_query)
-                elif database.url.scheme == "sqlite":
+                elif database.url.scheme in ["sqlite", "sqlite+aiosqlite"]:
                     results = await raw_connection.execute_fetchall(select_query)
 
                 assert len(results) == 3
@@ -888,7 +908,7 @@ async def test_queries_with_expose_backend_connection():
                 assert results[2][2] == True
 
                 # fetch_one()
-                if database.url.scheme == "postgresql":
+                if database.url.scheme in ["postgresql", "postgresql+asyncpg"]:
                     result = await raw_connection.fetchrow(select_query)
                 elif database.url.scheme == "mysql+asyncmy":
                     async with raw_connection.cursor() as cursor:
@@ -1052,8 +1072,8 @@ async def test_posgres_interface():
     """
     database_url = DatabaseURL(DATABASE_URL)
 
-    if database_url.scheme != "postgresql":
-        pytest.skip("Test is only for postgresql")
+    if database_url.scheme not in ["postgresql", "postgresql+asyncpg"]:
+        pytest.skip("Test is only for asyncpg")
 
     async with Database(database_url) as database:
         async with database.transaction(force_rollback=True):
